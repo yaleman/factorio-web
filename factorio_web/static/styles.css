@@ -23,6 +23,15 @@ th {
 	font-weight: bold;
 }
 
+.notice {
+	background-color: #b7e942;
+	color: black;
+	border: 1px solid purple;
+	padding: 1rem;
+	border-radius: 0.75rem;
+	margin-bottom: 1rem;
+}
+
 .container {
 	flex: 1;
 	border-radius: 1rem;

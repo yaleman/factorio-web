@@ -9,19 +9,12 @@
 <html>
     <body>
         <h1>Factorio Web RCON Interface</h1>
-
+        <!-- SAVED_NOTICE -->
         <div class="container">
             <h2>Players</h2>
             <div id="players-container">
                 Loading players...
             </div>
-        </div>
-        <div class="container">
-            <h2>Save Game</h2>
-            <form method="post" action="/save">
-                <input type='text' name='filename' placeholder='Enter filename (optional)' />
-                <button type="submit">Save Game</button>
-            </form>
         </div>
         <div class="container">
             <h2>Admins</h2>
@@ -40,9 +33,16 @@
                 <pre id="rcon-result"></pre>
             </div>
         </div>
+        <div class="container">
+            <h2>Save Game</h2>
+            <form method="post" action="/save">
+                <input type='text' name='filename' placeholder='Enter filename (optional)' />
+                <button type="submit">Save Game</button>
+            </form>
+        </div>
 
         <footer id="server-info">
-            Loading server info...
+            Loading server info...`
         </footer>
     </body>
 </html>

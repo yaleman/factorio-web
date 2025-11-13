@@ -4,7 +4,7 @@ default:
 
 
 reload:
-    uv run uvicorn 'factorio_web:app' --reload --port 8001 --host '127.0.0.1'
+    uv run uvicorn 'factorio_web:app' --reload --port 8001 --host 0.0.0.0
 
 
 check: lint mypy test

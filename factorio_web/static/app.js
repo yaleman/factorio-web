@@ -114,3 +114,13 @@ document.getElementById('rcon-form').addEventListener('submit', async (e) => {
         resultPre.textContent = `Error: ${error.message}`;
     }
 });
+
+// Auto-redirect to home after 10 seconds if message div exists
+window.addEventListener('load', () => {
+    const messageDiv = document.getElementById('message');
+    if (messageDiv) {
+        setTimeout(() => {
+            window.location.href = '/';
+        }, 10000);
+    }
+});

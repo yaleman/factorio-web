@@ -1,24 +1,67 @@
 import os
 from pathlib import Path
-from typing import Annotated, List
+from typing import Annotated, List, Any
 import re
+import ipaddress
 from litestar import Litestar, get, MediaType, post, Response
+from litestar.connection import Request
 from litestar.enums import RequestEncodingType
 from litestar.params import Body
-from litestar.exceptions import HTTPException
+from litestar.exceptions import HTTPException, ValidationException
+from litestar.logging import LoggingConfig
+from litestar.response.redirect import ASGIRedirectResponse
+
 
 from .models import PlayerInfo, PlayersInfo, UptimeResponse, SaveForm, RconCommand
 from .rcon_command import run_command
 from .config import Settings
+import factorio_web.middleware as middleware
+from pydantic import BaseModel
 
 MY_PATH = os.path.dirname(__file__)
 CONFIG = Settings.model_validate({})
 
+# Parse allowlist on startup using the Settings method
+ALLOWLIST = CONFIG.allowlist()
+
+
+class IndexQuery(BaseModel):
+    saved: bool | None = None
+    filename: str | None = None
+
 
 @get("/", media_type=MediaType.HTML)
-async def index_html() -> str:
-    with open(os.path.join(MY_PATH, "static", "index.html"), "r") as f:
-        return f.read()
+async def index_html(
+    request: Request[Any, Any, Any], query: IndexQuery
+) -> str:  # typ : ignore[type-arg]
+    print(query)
+    try:
+        print(request.client)
+        if not CONFIG.allowlist():
+            index_file = "index-admin.html"
+        for network in ALLOWLIST:
+            if request.client and network.overlaps(
+                ipaddress.ip_network(request.client.host)
+            ):
+                index_file = "index-admin.html"
+                with open(os.path.join(MY_PATH, "static", index_file), "r") as f:
+                    contents = f.read()
+                    if query.saved:
+                        contents = contents.replace(
+                            "<!-- SAVED_NOTICE -->",
+                            '<div class="notice" id="message">Game saved successfully{}</div>'.format(
+                                f" as {query.filename}." if query.filename else "."
+                            ),
+                        )
+                    return contents
+                break
+        else:
+            index_file = "index-nonadmin.html"
+            with open(os.path.join(MY_PATH, "static", index_file), "r") as f:
+                return f.read()
+    except Exception as e:
+        print("Error serving index.html", e)
+        raise HTTPException(status_code=500, detail="Error loading index page.")
 
 
 @get("/static/{filename:str}")
@@ -113,14 +156,15 @@ async def shutdown_server() -> str:
 @post("/save", media_type=MediaType.JSON)
 async def save_game(
     data: Annotated[SaveForm, Body(media_type=RequestEncodingType.URL_ENCODED)],
-) -> str:
+) -> ASGIRedirectResponse:
     command = ["/save"]
     if data is not None and data.filename is not None and data.filename.strip() != "":
         command.append(data.filename)
     response = (await run_command(command, CONFIG)).strip()
     if response.strip().startswith("Saving map"):
-        filename = response.strip().split()[-1]
-        return f'"{filename}"'
+        return ASGIRedirectResponse(
+            "/?saved=true&filename={}".format((data.filename or "").strip())
+        )
     raise HTTPException(status_code=500, detail="Error saving game.")
 
 
@@ -131,7 +175,40 @@ async def rcon_command(data: RconCommand) -> dict[str, str]:
     return {"result": response}
 
 
+def app_exception_handler(
+    request: Request[Any, Any, Any], exc: HTTPException
+) -> Response[Any]:
+    return Response(
+        content={
+            "error": "server error",
+            "path": request.url.path,
+            "detail": exc.detail,
+            "status_code": exc.status_code,
+        },
+        status_code=500,
+    )
+
+
+def router_handler_exception_handler(
+    request: Request[Any, Any, Any], exc: ValidationException
+) -> Response[Any]:
+    return Response(
+        content={"error": "validation error", "path": request.url.path},
+        status_code=400,
+    )
+
+
+logging_config = LoggingConfig(
+    root={"level": "INFO", "handlers": ["queue_listener"]},
+    formatters={
+        "standard": {"format": "%(asctime)s - %(name)s - %(levelname)s - %(message)s"}
+    },
+    log_exceptions="always",
+)
+
 app = Litestar(
+    logging_config=logging_config,
+    exception_handlers={HTTPException: app_exception_handler},
     route_handlers=[
         index_html,
         list_players,
@@ -143,6 +220,7 @@ app = Litestar(
         rcon_command,
         static_file,
     ],
+    middleware=[middleware.HostLimiter(allowlist=ALLOWLIST).middleware],
 )
 
 __all__ = ["app"]
