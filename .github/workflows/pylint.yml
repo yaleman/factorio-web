@@ -11,13 +11,7 @@ jobs:
   pylint:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
-        with:
-          fetch-depth: 0 # Fetch all history for .GitInfo and .Lastmod
-      - name: Set up Python 3.13 # TODO: This should be template-able based on what's in pyproject
-        uses: actions/setup-python@v4
-        with:
-          python-version: "3.13" # TODO: This should be template-able based on what's in pyproject
+      - uses: actions/checkout@v5
       - name: Running tests
         run: |
           python -m pip install --quiet --no-cache-dir --upgrade uv
