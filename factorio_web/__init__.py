@@ -3,6 +3,8 @@ from pathlib import Path
 from typing import Annotated, List, Any
 import re
 import ipaddress
+import sys
+
 from litestar import Litestar, get, MediaType, post, Response
 from litestar.connection import Request
 from litestar.enums import RequestEncodingType
@@ -10,16 +12,22 @@ from litestar.params import Body
 from litestar.exceptions import HTTPException, ValidationException
 from litestar.logging import LoggingConfig
 from litestar.response.redirect import ASGIRedirectResponse
+from pydantic import BaseModel, ValidationError
 
 
 from .models import PlayerInfo, PlayersInfo, UptimeResponse, SaveForm, RconCommand
 from .rcon_command import run_command
 from .config import Settings
-import factorio_web.middleware as middleware
-from pydantic import BaseModel
+from .middleware import HostLimiterMiddleware
 
 MY_PATH = os.path.dirname(__file__)
-CONFIG = Settings.model_validate({})
+
+try:
+    CONFIG = Settings.model_validate({})
+except ValidationError as e:
+    print("Configuration error:", e)
+    sys.exit(1)
+    # raise e
 
 # Parse allowlist on startup using the Settings method
 ALLOWLIST = CONFIG.allowlist()
@@ -223,7 +231,7 @@ app = Litestar(
         rcon_command,
         static_file,
     ],
-    middleware=[middleware.HostLimiterMiddleware(allow_list=ALLOWLIST)],
+    middleware=[HostLimiterMiddleware(allow_list=ALLOWLIST)],
 )
 
 __all__ = ["app"]

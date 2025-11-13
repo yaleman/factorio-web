@@ -11,7 +11,7 @@ async def run_command(command: list[str], config: Settings) -> str:
             *command,
             host=config.rcon_host,
             port=config.rcon_port,
-            passwd=config.rcon_password,
+            passwd=config.rcon_password.get_secret_value(),
         )
         return res
     except WrongPassword:
