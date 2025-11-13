@@ -33,35 +33,29 @@ class IndexQuery(BaseModel):
 @get("/", media_type=MediaType.HTML)
 async def index_html(
     request: Request[Any, Any, Any], query: IndexQuery
-) -> str:  # typ : ignore[type-arg]
-    print(query)
-    try:
-        print(request.client)
-        if not CONFIG.allowlist():
+) -> str:  # type : ignore[type-arg]
+    if not CONFIG.allowlist():
+        index_file = "index-admin.html"
+    for network in ALLOWLIST:
+        if request.client and network.overlaps(
+            ipaddress.ip_network(request.client.host)
+        ):
             index_file = "index-admin.html"
-        for network in ALLOWLIST:
-            if request.client and network.overlaps(
-                ipaddress.ip_network(request.client.host)
-            ):
-                index_file = "index-admin.html"
-                with open(os.path.join(MY_PATH, "static", index_file), "r") as f:
-                    contents = f.read()
-                    if query.saved:
-                        contents = contents.replace(
-                            "<!-- SAVED_NOTICE -->",
-                            '<div class="notice" id="message">Game saved successfully{}</div>'.format(
-                                f" as {query.filename}." if query.filename else "."
-                            ),
-                        )
-                    return contents
-                break
-        else:
-            index_file = "index-nonadmin.html"
             with open(os.path.join(MY_PATH, "static", index_file), "r") as f:
-                return f.read()
-    except Exception as e:
-        print("Error serving index.html", e)
-        raise HTTPException(status_code=500, detail="Error loading index page.")
+                contents = f.read()
+                if query.saved:
+                    contents = contents.replace(
+                        "<!-- SAVED_NOTICE -->",
+                        '<div class="notice" id="message">Game saved successfully{}</div>'.format(
+                            f" as {query.filename}." if query.filename else "."
+                        ),
+                    )
+                return contents
+            break
+    else:
+        index_file = "index-nonadmin.html"
+        with open(os.path.join(MY_PATH, "static", index_file), "r") as f:
+            return f.read()
 
 
 @get("/static/{filename:str}")
@@ -178,6 +172,15 @@ async def rcon_command(data: RconCommand) -> dict[str, str]:
 def app_exception_handler(
     request: Request[Any, Any, Any], exc: HTTPException
 ) -> Response[Any]:
+    if exc.status_code < 500:
+        return Response(
+            content={
+                "error": f"client error {exc.status_code}",
+                "path": request.url.path,
+                "status_code": exc.status_code,
+            },
+            status_code=exc.status_code,
+        )
     return Response(
         content={
             "error": "server error",
@@ -220,7 +223,7 @@ app = Litestar(
         rcon_command,
         static_file,
     ],
-    middleware=[middleware.HostLimiter(allowlist=ALLOWLIST).middleware],
+    middleware=[middleware.HostLimiterMiddleware(allow_list=ALLOWLIST)],
 )
 
 __all__ = ["app"]
