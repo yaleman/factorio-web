@@ -7,11 +7,12 @@ from litestar.enums import RequestEncodingType
 from litestar.params import Body
 from litestar.exceptions import HTTPException
 
-from .models import PlayerInfo, PlayersInfo, UptimeResponse, SaveForm
-from .rcon import run_command
-
+from .models import PlayerInfo, PlayersInfo, UptimeResponse, SaveForm, RconCommand
+from .rcon_command import run_command
+from .config import Settings
 
 MY_PATH = os.path.dirname(__file__)
+CONFIG = Settings.model_validate({})
 
 
 @get("/", media_type=MediaType.HTML)
@@ -21,7 +22,7 @@ async def index_html() -> str:
 
 
 @get("/static/{filename:str}")
-async def static_file(filename: str) -> Response:
+async def static_file(filename: str) -> Response[str | bytes]:
     if (
         filename.lower().startswith("..")
         or "/" in filename
@@ -29,16 +30,19 @@ async def static_file(filename: str) -> Response:
         or ".htm" in filename
     ):
         raise HTTPException(status_code=400, detail="Invalid filename.")
-    filename = Path(os.path.join(MY_PATH, "static", filename))
+    filepath = Path(os.path.join(MY_PATH, "static", filename))
     try:
-        if filename.exists() and filename.is_file():
-            if filename.suffix == ".css":
-                return Response(filename.read_text(), media_type=MediaType.CSS)
-            elif filename.suffix == ".js":
+        if filepath.exists() and filepath.is_file():
+            if filepath.suffix == ".css":
                 return Response(
-                    filename.read_text(), media_type="application/javascript"
+                    filepath.read_text(encoding="utf-8"), media_type=MediaType.CSS
                 )
-            return Response(filename.read_text())
+            elif filepath.suffix == ".js":
+                return Response(
+                    filepath.read_text(encoding="utf-8"),
+                    media_type="application/javascript",
+                )
+            return Response(filepath.read_bytes())
         print("File not found:", filename)
         raise HTTPException(status_code=404, detail=f"File {filename} not found.")
     except Exception as e:
@@ -48,7 +52,7 @@ async def static_file(filename: str) -> Response:
 
 @get("/players", media_type=MediaType.JSON)
 async def list_players() -> PlayersInfo:
-    response = await run_command(["/players"])
+    response = await run_command(["/players"], CONFIG)
     lines = response.splitlines()
     player_count = lines[0].split("(")[1].split(")")[0]
     players = {}
@@ -64,13 +68,13 @@ async def list_players() -> PlayersInfo:
 
 @get("/seed", media_type=MediaType.JSON)
 async def get_seed() -> int:
-    response = await run_command(["/seed"])
+    response = await run_command(["/seed"], CONFIG)
     return int(response.strip())
 
 
 @get("/uptime", media_type=MediaType.JSON)
-async def get_uptime() -> str:
-    response = (await run_command(["/time"])).strip()
+async def get_uptime() -> dict[str, int]:
+    response = (await run_command(["/time"], CONFIG)).strip()
     hour_regex = re.compile(r"(\d+)\s+hours?")
     minute_regex = re.compile(r"(\d+)\s+minutes?")
     second_regex = re.compile(r"(\d+)\s+seconds?")
@@ -88,7 +92,7 @@ async def get_uptime() -> str:
 
 @get("/admins", media_type=MediaType.JSON)
 async def list_admins() -> List[PlayerInfo]:
-    response = await run_command(["/admins"])
+    response = await run_command(["/admins"], CONFIG)
     lines = response.splitlines()
     admins = []
     for line in lines:
@@ -102,7 +106,7 @@ async def list_admins() -> List[PlayerInfo]:
 
 @post("/shutdown", media_type=MediaType.JSON)
 async def shutdown_server() -> str:
-    response = await run_command(["/quit"])
+    response = await run_command(["/quit"], CONFIG)
     return '"{}"'.format(response.strip())
 
 
@@ -113,11 +117,18 @@ async def save_game(
     command = ["/save"]
     if data is not None and data.filename is not None and data.filename.strip() != "":
         command.append(data.filename)
-    response = (await run_command(command)).strip()
+    response = (await run_command(command, CONFIG)).strip()
     if response.strip().startswith("Saving map"):
         filename = response.strip().split()[-1]
         return f'"{filename}"'
     raise HTTPException(status_code=500, detail="Error saving game.")
+
+
+@post("/rcon", media_type=MediaType.JSON)
+async def rcon_command(data: RconCommand) -> dict[str, str]:
+    """Execute arbitrary RCON command and return raw response"""
+    response = await run_command([data.command], CONFIG)
+    return {"result": response}
 
 
 app = Litestar(
@@ -129,6 +140,7 @@ app = Litestar(
         get_uptime,
         save_game,
         shutdown_server,
+        rcon_command,
         static_file,
     ],
 )

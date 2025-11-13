@@ -20,3 +20,7 @@ class UptimeResponse(BaseModel):
 
 class SaveForm(BaseModel):
     filename: Optional[str] = None
+
+
+class RconCommand(BaseModel):
+    command: str

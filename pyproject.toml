@@ -16,7 +16,11 @@ dependencies = [
 factorio-web = "factorio_web.__main__:main"
 
 [dependency-groups]
-dev = ["mypy>=1.18.2", "pytest>=9.0.1", "ruff>=0.14.4"]
+dev = [
+    "mypy>=1.18.2",
+    "pytest>=9.0.1",
+    "ruff>=0.14.4",
+]
 
 [build-system]
 requires = ["hatchling"]

@@ -50,3 +50,36 @@ footer {
 	gap: 30px;
 	justify-content: center;
 }
+
+#rcon-form {
+	display: flex;
+	gap: 10px;
+	margin-bottom: 15px;
+}
+
+#rcon-command {
+	flex: 1;
+	padding: 8px;
+	border: 1px solid #ddd;
+	border-radius: 4px;
+	font-family: monospace;
+}
+
+#rcon-result-container {
+	margin-top: 10px;
+}
+
+#rcon-result {
+	background-color: #2d2d2d;
+	color: #f8f8f2;
+	padding: 15px;
+	border-radius: 4px;
+	font-family: monospace;
+	font-size: 14px;
+	overflow-x: auto;
+	white-space: pre-wrap;
+	word-wrap: break-word;
+	min-height: 100px;
+	max-height: 400px;
+	overflow-y: auto;
+}

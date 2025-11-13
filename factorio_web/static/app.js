@@ -80,3 +80,37 @@ setInterval(loadAdmins, 5000);
 
 loadFooterInfo();
 setInterval(loadFooterInfo, 10000);
+
+// RCON command form handler
+document.getElementById('rcon-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+
+    const commandInput = document.getElementById('rcon-command');
+    const resultPre = document.getElementById('rcon-result');
+    const command = commandInput.value.trim();
+
+    if (!command) return;
+
+    resultPre.textContent = 'Executing...';
+
+    try {
+        const response = await fetch('/rcon', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ command: command }),
+        });
+
+        const data = await response.json();
+
+        if (response.ok) {
+            resultPre.textContent = data.result;
+        } else {
+            resultPre.textContent = `Error: ${data.detail || 'Unknown error'}`;
+        }
+    } catch (error) {
+        console.error('Error executing RCON command:', error);
+        resultPre.textContent = `Error: ${error.message}`;
+    }
+});
