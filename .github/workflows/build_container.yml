@@ -10,10 +10,6 @@ permissions:
   packages: write
   contents: read
 
-env:
-  SCCACHE_GHA_ENABLED: "true"
-  RUSTC_WRAPPER: "sccache"
-
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
@@ -24,10 +20,6 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v5
-      - name: Setup sccache
-        uses: mozilla-actions/sccache-action@v0.0.9
-        with:
-          version: "v0.4.2"
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
       - name: Set up Docker Buildx
