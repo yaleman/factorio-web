@@ -5,7 +5,7 @@ description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
-    "granian>=2.6.0",
+    "granian>=2.7.4",
     "litestar>=2.18.0",
     "pydantic>=2.12.4",
     "pydantic-settings>=2.12.0",
